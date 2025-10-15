@@ -1,0 +1,12 @@
+@prefix ns1: <http://example.org/energy#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+ns1:BatteryA a ns1:Battery ;
+    ns1:hasCharge 80 .
+
+ns1:BatteryB a ns1:Battery ;
+    ns1:hasCharge 40 .
+
+ns1:Motor a ns1:Component ;
+    ns1:powerDemand 50 .
+
