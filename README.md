@@ -1,107 +1,123 @@
-# Q-Learning Battery Charging Agent 🔋🤖
 
-Ce projet implémente un **agent d'apprentissage par renforcement (Q-learning)** qui apprend à **gérer la charge d'une batterie** de manière optimale.  
-L'objectif est de maximiser la récompense totale tout en maintenant un comportement efficace à long terme.
+# ⚡ Gestion d’énergie avec Apprentissage par Renforcement (Q-Learning)
 
----
+## 🧠 Description du projet
+Ce projet met en œuvre un **système d’apprentissage par renforcement (RL)** simple pour optimiser l’utilisation de deux batteries alimentant un moteur électrique.  
+L’objectif est d’apprendre une **politique de sélection de batterie** (A ou B) qui maximise la récompense en maintenant un équilibre entre leurs niveaux de charge tout en répondant à la demande énergétique du moteur.
 
-## 🚀 Objectif du projet
-
-Le but de ce projet est de **simuler un environnement de charge de batterie** dans lequel un agent intelligent apprend à décider :
-- Quand charger la batterie.
-- Quand économiser l'énergie.
-- Comment maximiser la performance sur plusieurs épisodes.
+Le projet combine :
+- **Une ontologie RDF (Web sémantique)** pour représenter les composants énergétiques (batteries, moteur).
+- **Un environnement RL personnalisé** (`EnergyEnv`) basé sur cette ontologie.
+- **Un agent d’apprentissage Q-Learning** implémenté avec un **réseau de neurones (PyTorch)**.
 
 ---
 
-## 🧠 Fonctionnement
+## 🗂️ Structure du projet
 
-L'agent apprend grâce à une approche **Q-Learning avec réseau de neurones (Q-Network)**.
-
-### 1. Environnement (`BatteryEnv`)
-L’environnement simule une batterie avec un niveau de charge (entre 0 et 100).  
-Chaque action (charger ou ne rien faire) modifie ce niveau de charge et donne une **récompense** selon le comportement.
-
-- **État (state)** : Niveau de charge de la batterie.
-- **Actions (action)** :
-  - `0` → Ne rien faire.
-  - `1` → Charger.
-- **Récompense (reward)** :
-  - Positive si l’action est efficace (ex : maintenir la batterie dans une plage optimale).
-  - Négative si l’action est inefficace (ex : surcharge ou sous-charge).
-
-### 2. Agent Q-Learning (`qnet`)
-Le réseau de neurones `qnet` estime les valeurs Q (Q-values) pour chaque action possible dans un état donné.
-
-Formule de mise à jour :
 ```
-Q(s, a) ← Q(s, a) + α [r + γ * max(Q(s', a')) − Q(s, a)]
+├── EnergyEnv.py         # Environnement RL basé sur l’ontologie
+├── ontology.py          # Création et gestion de l’ontologie RDF
+├── main.py              # Entraînement du modèle avec Q-Learning
+├── data/
+│   └── ontology.ttl     # Fichier généré contenant l’ontologie RDF
+└── README.md            # Description du projet
 ```
-- `α` : Taux d’apprentissage (learning rate).
-- `γ` : Facteur de récompense future (discount factor).
-
-### 3. Entraînement
-Le fichier `train_qlearning()` entraîne l’agent sur plusieurs épisodes.  
-L’agent explore d’abord (grâce à `epsilon`), puis exploite ce qu’il a appris (réduction progressive d’`epsilon`).
 
 ---
 
-## 📈 Visualisation des résultats
+## ⚙️ Fonctionnement
 
-À la fin de l’entraînement, une courbe montre la **récompense totale par épisode**, permettant d’observer la progression de l’agent.
+### 1️⃣ Ontologie RDF
+Le fichier `ontology.py` définit une ontologie simple :
+- Deux batteries (`BatteryA` et `BatteryB`)
+- Un moteur (`Motor`)
+- Des propriétés :
+  - `hasCharge` → niveau de charge de chaque batterie
+  - `powerDemand` → demande du moteur
 
 ```python
-plt.plot(range(1, len(rewards) + 1), rewards)
-plt.xlabel("Épisodes")
-plt.ylabel("Récompense totale")
-plt.title("Progression de l'apprentissage")
-plt.show()
+BatteryA : hasCharge = 80
+BatteryB : hasCharge = 40
+Motor    : powerDemand = 50
+```
+
+Le graphe RDF est sauvegardé sous `data/ontology.ttl`.
+
+---
+
+### 2️⃣ Environnement RL — `EnergyEnv`
+L’environnement lit les données depuis l’ontologie RDF et définit :
+- **État (state)** : `[chargeA, chargeB]`
+- **Actions (action)** :
+  - `0` → utiliser la batterie A
+  - `1` → utiliser la batterie B
+- **Récompense (reward)** :
+  - +10 points pour une action valide  
+  - pénalité proportionnelle à la différence de charge entre les batteries  
+  - -10 si une batterie tombe à zéro
+
+Le but de l’agent est d’équilibrer les charges pour éviter qu’une batterie ne soit totalement déchargée.
+
+---
+
+### 3️⃣ Agent RL — `main.py`
+Le fichier `main.py` implémente un agent **Q-Learning** à l’aide d’un petit **réseau de neurones** :
+
+- **Entrée :** 2 (charges des batteries)  
+- **Sortie :** 2 (actions possibles)
+- **Réseau :**
+  ```python
+  nn.Linear(2, 32) → ReLU → nn.Linear(32, 2)
+  ```
+- **Optimiseur :** Adam (lr = 0.01)
+- **Fonction de perte :** MSE
+- **Facteur de discount :** γ = 0.9
+- **Exploration :** ε-décroissant (de 0.1 à 0.01)
+
+L’agent choisit quelle batterie utiliser pour maximiser la récompense cumulée.
+
+---
+
+## 📊 Résultats et Observations
+
+- Le graphique final montre l’évolution du **total reward** au fil des épisodes.
+- Le modèle apprend progressivement à **équilibrer l’utilisation des deux batteries**.
+- Une **décroissance de ε** permet à l’agent de passer de l’exploration à l’exploitation.
+- Si une batterie tombe à zéro, la pénalité de -10 encourage une gestion plus équilibrée.
+- Le modèle entraîné est sauvegardé dans `qnet_model.pth` pour un futur réentraînement.
+
+---
+
+## 🚀 Lancer le projet
+
+### 1️⃣ Installer les dépendances
+```bash
+pip install -r requirements.txt 
+```
+
+### 2️⃣ Générer l’ontologie
+```bash
+python ontology.py
+```
+
+### 3️⃣ Lancer l’entraînement
+```bash
+python main.py
 ```
 
 ---
 
-## 🧩 Structure du projet
-
-```
-📂 QLearning-Battery
-├── qnet_model.pth          # Poids du modèle sauvegardé
-├── main.py                 # Point d'entrée principal
-├── train.py                # Fonction d'entraînement Q-learning
-├── env.py                  # Définition de l'environnement BatteryEnv
-├── requirements.txt        # Dépendances Python
-└── README.md               # Ce fichier 📘
-```
+## 🧩 Technologies utilisées
+- **Python**
+- **PyTorch** — pour le réseau de neurones du Q-Learning
+- **RDFLib** — pour manipuler l’ontologie
+- **Matplotlib** — pour visualiser la courbe de récompenses
+- **NumPy** — pour gérer les états numériques
 
 ---
 
-## 🛠️ Technologies utilisées
-
-- **Python 3**
-- **PyTorch** (réseau de neurones)
-- **Matplotlib** (visualisation)
-- **Numpy**
-
----
-
-## 📊 Observations
-
-- Le modèle apprend à stabiliser sa stratégie de charge après plusieurs épisodes.  
-- Il peut parfois présenter des **fluctuations** (récompenses en baisse temporaire) dues à :
-  - L’exploration (`epsilon`).
-  - La nature stochastique de l’environnement.
-- Plus le nombre d’épisodes augmente, plus le comportement devient stable.
-
----
-
-## 🔄 Améliorations possibles
-
-- Ajouter une mémoire de rejouage (Experience Replay).
-- Implémenter une version **Deep Q-Learning (DQN)**.
-- Introduire un **epsilon dynamique** pour équilibrer exploration/exploitation.
-- Simuler plusieurs batteries ou différents environnements de charge.
-
----
-
-## 👨‍💻 Auteur
-Projet réalisé par **Ilyes Omri**, étudiant en informatique passionné par l’intelligence artificielle et l’apprentissage par renforcement.
-
+## 💡 Améliorations possibles
+- Ajouter un **système de recharge automatique** des batteries.
+- Utiliser **DQN (Deep Q-Network)** avec mémoire d’expérience (replay buffer).
+- Introduire plus de variables dans l’ontologie (température, rendement, etc.).
+- Comparer les performances entre **Q-Learning tabulaire** et **réseau de neurones**.
