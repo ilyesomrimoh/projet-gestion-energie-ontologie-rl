@@ -21,18 +21,21 @@ class EnergyEnv:
         # action = 0 → utiliser batterie A
         # action = 1 → utiliser batterie B
         reward = 0
+        consumption = self.motor_demand / 10  #  proportion de la demande moteur à chaque étape
         if action == 0:
-            self.state[0] -= 10
-            reward = 10 - abs(self.state[0] - self.state[1]) * 0.1
+            self.state[0] -= consumption
+            self.state[0] = np.maximum(self.state[0], 0)
         else:
-            self.state[1] -= 10
-            reward = 10 - abs(self.state[0] - self.state[1]) * 0.1
+            self.state[1] -= consumption
+            self.state[1] = np.maximum(self.state[1], 0)
+        
+        reward = 10 - abs(self.state[0] - self.state[1]) * 0.2
 
         if min(self.state) <= 0:
             self.done = True
             reward -= 10
 
-        return self.state, reward, self.done
+        return self.state, reward
 
     def reset(self):
         # Remet les valeurs initiales depuis l’ontologie

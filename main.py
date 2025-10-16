@@ -16,7 +16,7 @@ class QNetwork(nn.Module):
     def forward(self, x):
         return self.fc(x)
 
-def train_qlearning(env, episodes=100):
+def train_qlearning(env, episodes=1000):
     qnet = QNetwork(2,2)  # d'abord on crée le modèle
  
     # S'il existe déjà un modèle sauvegardé, on le charge pour continuer l'entraînement
@@ -27,34 +27,43 @@ def train_qlearning(env, episodes=100):
         print("Nouveau modèle créé.")
 
     rewards = []
-    optimizer = optim.Adam(qnet.parameters(), lr=0.01)
+    optimizer = optim.Adam(qnet.parameters(), lr=0.01) # lr = learning rate
     criterion = nn.MSELoss()
-    gamma = 0.9
-    epsilon = 0.1
-
+    gamma = 0.9 # facteur de discount
+    epsilon = 0 # pour la stratégie epsilon-greedy
+    best_strategy = None
+    best_reward = -float("inf")
     for episode in range(episodes):
         state = torch.FloatTensor(env.reset())
         total_reward = 0
-
+        strategy = []
         while not env.done:
             if random.random() < epsilon:
                 action = random.randint(0, 1)
             else:
                 action = torch.argmax(qnet(state)).item()
 
-            next_state, reward, done = env.step(action)
+            next_state, reward = env.step(action)
             next_state = torch.FloatTensor(next_state)
-            target = reward + gamma * torch.max(qnet(next_state)).item()
+            strategy.append((state, action, reward))
+            
+            target = reward
+            if not env.done:
+              target += gamma * torch.max(qnet(next_state)).item()
+            
             output = qnet(state)[action]
 
-            loss = criterion(output, torch.tensor(target, dtype=torch.float32))
+            loss = criterion(output, torch.tensor([target], dtype=torch.float32))
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             state = next_state
             total_reward += reward
-        
+        if total_reward > best_reward:
+            best_reward = total_reward
+            best_strategy = strategy
+
         rewards.append(total_reward)
         epsilon = max(0.01, epsilon * 0.995)  # Décroissance de epsilon pour mieux exploiter plus tard
         print(f"Episode {episode+1}: Total Reward = {total_reward:.2f}")
@@ -68,6 +77,11 @@ def train_qlearning(env, episodes=100):
     plt.title("Evolution du total reward pendant l'entraînement")
     plt.show()
 
+
+    print("=== Politique optimale observée ===")
+    print(f"Récompense totale : {best_reward}")
+    for s, a, r in best_strategy:
+        print(f"État: {s} | Action: {a} | Récompense: {r}")
 if __name__ == "__main__":
     print("=== 🚗 Hybrid Energy RL Demo ===")
     env = EnergyEnv()
